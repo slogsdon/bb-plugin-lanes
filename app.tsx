@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { definePluginApp, useRpc } from "@bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 type Window = { label: string; usedPercent: number; resetsAt: string | null };
 type Lane = {
@@ -135,36 +135,44 @@ function LanesSection() {
       .finally(() => setBusy(false));
   }, [rpc]);
 
+  // No CardTitle here: settingsSection renders the host's own "Lanes" heading
+  // and description above this component, so repeating it would double up.
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle>Lanes</CardTitle>
-        <Button size="sm" variant="outline" onClick={refresh} disabled={busy}>
-          {busy ? "Checking…" : "Refresh"}
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 pt-6">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {snapshot
+              ? `Updated ${new Date(snapshot.fetchedAt).toLocaleTimeString()}`
+              : "No reading yet."}
+          </span>
+          <Button size="sm" variant="outline" onClick={refresh} disabled={busy}>
+            {busy ? "Checking…" : "Refresh"}
+          </Button>
+        </div>
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        {snapshot === null && !error ? (
-          <p className="text-xs text-muted-foreground">No reading yet.</p>
-        ) : null}
         {snapshot?.lanes.map((lane) => (
           <LaneRow key={lane.id} lane={lane} />
         ))}
-        {snapshot ? (
-          <p className="pt-1 text-xs text-muted-foreground">
-            Updated {new Date(snapshot.fetchedAt).toLocaleTimeString()}
-          </p>
-        ) : null}
       </CardContent>
     </Card>
   );
 }
 
+// Ideally this would render inside the built-in Settings → Usage Limits page,
+// beside Codex and Claude Code. That page is host-owned and no slot targets it:
+// settingsSection carries no page selector, so a plugin's settings UI lands
+// under Extensions → Plugins → Lanes. This is the closest available placement
+// that keeps usage data in Settings rather than on the homepage.
+//
+// Swapping to app.slots.homepageSection (always visible, no navigation) or
+// app.slots.navPanel (its own sidebar entry) is a one-line change here.
 export default definePluginApp((app) => {
-  app.slots.homepageSection({
+  app.slots.settingsSection({
     id: "lanes",
     title: "Lanes",
+    description:
+      "Headroom across every model lane, including the two bb does not track natively.",
     component: LanesSection,
   });
 });
