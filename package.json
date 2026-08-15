@@ -2,6 +2,30 @@
   "name": "bb-plugin-lanes",
   "version": "0.1.0",
   "type": "module",
+  "description": "A bb plugin showing every model lane's headroom in one place. bb tracks Claude Code and Codex natively; this adds OpenCode Zen Go and OpenRouter, normalised into the same shape.",
+  "keywords": [
+    "bb",
+    "bb-plugin",
+    "getbb",
+    "agent-ide",
+    "ai-agents",
+    "usage-limits",
+    "rate-limits",
+    "openrouter",
+    "opencode",
+    "claude-code",
+    "codex"
+  ],
+  "author": "Shane Logsdon",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slogsdon/bb-plugin-lanes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/slogsdon/bb-plugin-lanes/issues"
+  },
+  "homepage": "https://github.com/slogsdon/bb-plugin-lanes#readme",
+  "license": "MIT",
   "engines": {
     "bb": ">=0.37",
     "bbPluginSdk": "^0.4.1"

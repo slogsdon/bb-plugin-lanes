@@ -42,8 +42,9 @@ server bundle, no notification tables, nothing in the plugin catalog, and nothin
 reaches the desktop app or the PWA. This plugin polls every 5 minutes into
 plugin kv and shows you the result **when you look**.
 
-Alerting is a separate job — see `bin/lane-watchdog.py` in `claude-code-config`,
-which pushes through ntfy. Do not delete the watchdog on the assumption that this
+Alerting is a separate job. If you need to be told before you look, run a poller
+of your own against the same endpoints (see *Sources*) and push through ntfy or
+similar. If you already have one, do not delete it on the assumption that this
 plugin covers it.
 
 ## Gotchas worth knowing
