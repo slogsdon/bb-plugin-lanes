@@ -1,83 +1,94 @@
 # bb-plugin-lanes
 
-A BB plugin.
+Every model lane's headroom in one place.
 
-## UI components
+bb natively tracks Claude Code and Codex subscription windows. It knows nothing
+about OpenCode Zen Go or OpenRouter, so the lanes you are most likely to exhaust
+by surprise are the ones with no gauge. This adds them, normalised into the same
+shape bb already uses.
 
-`components/ui/` is vendored source you own (the shadcn model): edit the
-files freely — they never update out from under you. Add more from the BB
-component registry (the full shadcn set, version-matched to your BB install
-via the pinned ref in `components.json`):
-
-```
-npx shadcn add @bb/dialog @bb/select
-```
-
-Run `npm install` once before `bb plugin build` — the vendored components'
-npm deps bundle into your dist. React, and BB-shimmed packages like the
-radix portal primitives and `sonner` (`import { toast } from "sonner"`
-reaches BB's own toaster), are provided by the BB app at runtime and never
-bundled. Ship `dist/` (npm tarball or committed for git installs) so
-people installing your plugin never need npm.
-
-## Manifest
-
-`package.json` is the plugin manifest. Notable fields:
-
-- `bb.server` — backend entry (required); optional `bb.app` for a frontend.
-- `bb.name` and `bb.description` — required human-facing identity.
-- `bb.branding` — required; declare `icon` as a BB icon name or a
-  plugin-relative compact SVG, or declare `logo.light` (with optional
-  `logo.dark`). Logo assets must be relative `.svg`, `.png`, or
-  `.webp` files.
-- `engines.bb` — supported bb app version range.
-- `engines.bbPluginSdk` — supported plugin SDK range (scaffold: `^0.4.1`).
-
-Run `bb plugin build` before publishing git/npm installs. It writes
-`dist/server.js` + `server.meta.json` (and, with `bb.app`, `app.js` /
-`app.css` / `app.meta.json`). Each `*.meta.json` stamps SDK major/version,
-`artifactFormatVersion`, `pluginId`, `pluginVersion`, and
-`builtWith` so managed installs can verify the artifacts.
-
-## Install
-
-From this directory:
-
-```
-bb plugin install .
+```bash
+bb lanes           # human-readable
+bb lanes --json    # for agents deciding where to route work
 ```
 
-After editing sources, reload:
+Also renders as a settings section — see *Placement* below for why it is not on
+the Usage limits page.
 
-```
-bb plugin reload lanes
-```
+## The distinction it encodes
 
-## Configure
+The four lanes are not the same kind of thing, and the display says so:
 
-```
-bb plugin config lanes
-bb plugin config lanes set greeting hi
-```
+- **subscription** — Claude Code, Codex, and **OpenCode Go**. A quota window that
+  *refills*. Exhausting one costs you waiting until `resetsAt`. Go is a $10/mo
+  plan with rolling/weekly/monthly caps, so it belongs here despite being an API.
+- **metered** — OpenRouter. A balance that *depletes*, with no auto-reload. It
+  does not throttle; it runs dry and the lane stops working. Rendered with
+  remaining dollars and deliberately **no countdown**, because nothing refills it
+  and a timer would be a lie.
 
-## Types & API reference
+## LiteLLM is deliberately not a lane
 
-`types/bb-plugin-sdk.d.ts` (and `types/bb-plugin-sdk-app.d.ts` for the
-frontend) are the full, bundled BB plugin API — `tsconfig.json` maps
-`@bb/plugin-sdk` to them, so your editor and `tsc` see real types with no extra
-install. They are readable declarations: open them for an exact signature.
+It is the router your Zen and OpenRouter traffic flows *through*, so listing it
+beside them would double-count. Its useful axis is attribution — which alias
+burned the budget — which needs one LiteLLM virtual key per lane, since
+`/global/spend/report` groups by `team`/`customer`/`api_key` but not by model.
+Not implemented.
 
-The SDK surface grows with every BB release, and these are a copy. Refresh
-them from the BB you are running:
+## It displays. It does not alert.
 
-```
-bb plugin types          # rewrite types/ from this BB
-bb plugin types --check  # CI: fail when they are out of date
-```
+bb has no notification system of any kind: no settings, no push code in the
+server bundle, no notification tables, nothing in the plugin catalog, and nothing
+reaches the desktop app or the PWA. This plugin polls every 5 minutes into
+plugin kv and shows you the result **when you look**.
 
-`bb plugin build` and `bb plugin dev` refresh them for you. Ask BB to write
-plugins for you: the `bb-plugin-authoring` skill documents the whole surface
-with examples.
+Alerting is a separate job — see `bin/lane-watchdog.py` in `claude-code-config`,
+which pushes through ntfy. Do not delete the watchdog on the assumption that this
+plugin covers it.
 
-Confused by the API, or need something the types don't explain? Clone the BB
-repo and read the source: <https://github.com/get-bb/bb>.
+## Gotchas worth knowing
+
+**Credentials are read from `~/.bb/env.json` *before* `process.env`, and the
+order matters.** `process.env` is a snapshot taken when the bb server started, so
+after a key rotation it serves a revoked credential until the whole server
+restarts. The file on disk is what you actually edit. Reading env first produced
+a live 401 on OpenRouter minutes after a rotation while the file was already
+correct.
+
+**Zen rejects some default user agents outright.** Requests send an explicit
+`User-Agent`; without one, `https://opencode.ai/zen/go/v1/usage` returns 403 with
+a valid key. Identical key, 403 with urllib's default and 200 with any ordinary
+identifier. It looks exactly like an auth failure and is not.
+
+**Context windows are unverified.** Zen's `/models` advertises only `id` and
+`owned_by`, so nothing here reports Go context limits.
+
+## Placement
+
+The natural home is bb's built-in **Settings → Usage limits**, beside Codex and
+Claude Code. That page is host-owned and no slot targets it —
+`PluginSettingsSectionRegistration` has no page selector — so this lands under
+**Extensions → Plugins → Lanes** instead. Filed upstream at
+[get-bb/bb](https://github.com/get-bb/bb) asking for a contribution slot; the
+data already shares bb's `{label, usedPercent, resetsAt}` shape, so if that
+lands the component moves with no rework.
+
+Switching to `homepageSection` (always visible) or `navPanel` (its own sidebar
+entry) is a one-line change in `app.tsx`.
+
+## Sources
+
+| Lane | Endpoint |
+|---|---|
+| Claude Code, Codex | `bb.sdk.system.usageLimits()` |
+| OpenCode Go | `GET https://opencode.ai/zen/go/v1/usage` |
+| OpenRouter | `GET https://openrouter.ai/api/v1/credits` |
+
+OpenRouter is read from **credits**, not the key's spend cap — the balance is
+what actually stops the lane.
+
+## Developing
+
+Installed from a path, so the backend loads `server.ts` directly — edit and
+`bb plugin reload lanes`. Frontend changes need `bb plugin build .` first, or run
+`bb plugin dev` to watch.
