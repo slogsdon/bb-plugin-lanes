@@ -15,6 +15,12 @@ bb lanes --json    # for agents deciding where to route work
 Also renders as a settings section — see *Placement* below for why it is not on
 the Usage limits page.
 
+## Screenshots
+
+![lanes](docs/screenshot.png)
+
+*Lanes settings: headroom across every model lane.*
+
 ## The distinction it encodes
 
 The four lanes are not the same kind of thing, and the display says so:
