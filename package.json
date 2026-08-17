@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-lanes",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "A bb plugin showing every model lane's headroom in one place. bb tracks Claude Code and Codex natively; this adds OpenCode Zen Go and OpenRouter, normalised into the same shape.",
   "keywords": [
